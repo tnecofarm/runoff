@@ -1,0 +1,1246 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>認識逕流分擔 - 手機版智慧雨水管理平台</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;600;700;900&family=Yusei+Magic&display=swap" rel="stylesheet">
+    <!-- Three.js 3D 繪圖引擎與 OrbitControls 控制器 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    
+    <style>
+        body {
+            font-family: 'Noto Sans TC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #f0f7ff;
+            color: #1e293b;
+            user-select: none;
+            -webkit-user-select: none;
+            overflow-x: hidden;
+            -webkit-tap-highlight-color: transparent;
+        }
+        
+        .playful-title {
+            font-family: 'Yusei Magic', 'Noto Sans TC', sans-serif;
+        }
+
+        /* 手機模擬器外觀，支援大螢幕置中 */
+        .app-container {
+            max-width: 480px;
+            margin: 0 auto;
+            min-height: 100vh;
+            background-color: #e0f2fe;
+            box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.25);
+            position: relative;
+            display: flex;
+            flex-col: column;
+            padding-bottom: 70px; /* 為底部導覽列留空 */
+        }
+
+        .card-shadow {
+            box-shadow: 0 8px 20px -4px rgba(14, 165, 233, 0.15), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
+        .hero-banner {
+            background: linear-gradient(135deg, #e0f2fe 0%, #bae6fd 100%);
+        }
+
+        .touch-active:active {
+            transform: scale(0.97);
+            transition: transform 0.1s ease;
+        }
+
+        /* 3D 沙盒容器專用樣式 */
+        #threejs-canvas-container {
+            width: 100%;
+            height: 240px;
+            position: relative;
+            cursor: grab;
+            border-radius: 1rem;
+            overflow: hidden;
+        }
+        #threejs-canvas-container:active {
+            cursor: grabbing;
+        }
+
+        /* 復古對話卡片樣式 */
+        .warm-paper {
+            background-color: #fffbeb;
+            border: 3px solid #f59e0b;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+            background-image: radial-gradient(#fef3c7 2px, transparent 0);
+            background-size: 10px 10px;
+        }
+
+        /* 隱藏滾動條但可滾動 */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+    </style>
+</head>
+<body class="bg-slate-900 md:py-6">
+
+    <!-- 主 App 模擬容器 -->
+    <div class="app-container bg-sky-50 border-x-0 md:border-x-4 border-slate-700 md:rounded-[40px] overflow-hidden flex flex-col justify-between">
+
+        <!-- 頂部手機狀態列與 App 標頭 -->
+        <header class="bg-sky-600 text-white pt-3 pb-3 px-4 sticky top-0 z-30 shadow-md">
+            <div class="flex justify-between items-center text-xs opacity-90 mb-1">
+                <span id="currentTime" class="font-black tracking-wider">19:41</span>
+                <div class="flex items-center gap-1.5 text-[11px]">
+                    <i class="fa-solid fa-signal"></i>
+                    <i class="fa-solid fa-wifi"></i>
+                    <i class="fa-solid fa-battery-full text-emerald-300"></i>
+                </div>
+            </div>
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-2xl bg-sky-400 border-2 border-white/80 flex items-center justify-center text-sky-950 font-black shadow-inner">
+                        💧
+                    </div>
+                    <div>
+                        <h1 class="text-lg font-extrabold playful-title tracking-wide text-white flex items-center gap-1.5">
+                            逕流分擔夥伴 <span class="text-xs font-normal bg-sky-800 text-sky-200 px-2 py-0.5 rounded-full">全民智慧化</span>
+                        </h1>
+                    </div>
+                </div>
+                <button onclick="openHelpModal()" class="w-8 h-8 rounded-full bg-sky-500 hover:bg-sky-400 flex items-center justify-center text-white text-sm font-bold shadow active:scale-95 transition">
+                    <i class="fa-solid fa-circle-question"></i>
+                </button>
+            </div>
+        </header>
+
+        <!-- 主頁面切換內容區 (知識 / 案例 / 遊戲 / 我的貢獻) -->
+        <main id="mainContent" class="flex-grow overflow-y-auto no-scrollbar pb-6">
+
+            <!-- TAB 1: 知識頁面 (根據「逕流分擔手機網站畫面.png」精準呈現) -->
+            <section id="page-knowledge" class="p-4 space-y-4">
+                
+                <!-- 頂部 Hero Banner 卡片 -->
+                <div class="hero-banner rounded-3xl p-4 border-2 border-sky-200 shadow-sm relative overflow-hidden flex items-center justify-between gap-2">
+                    <div class="z-10 max-w-[65%]">
+                        <h2 class="text-2xl font-black text-slate-800 playful-title leading-tight">
+                            逕流分擔<br><span class="text-sky-600">是什麼？</span>
+                        </h2>
+                        <p class="text-xs font-bold text-slate-600 mt-1.5 leading-relaxed">
+                            與社區夥伴一起<br>智慧管理雨水
+                        </p>
+                    </div>
+                    <div class="w-28 h-28 flex-shrink-0 relative flex items-center justify-center">
+                        <!-- 天候假面 Character Image -->
+                        <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E5%A4%A9%E5%80%99%E5%81%87%E9%9D%A2.png" 
+                             alt="天候假面" 
+                             class="w-full h-full object-contain filter drop-shadow-md cursor-pointer hover:scale-105 transition"
+                             onclick="showCharacterModal('weather')"
+                             onerror="this.src='https://placehold.co/120x120/0ea5e9/ffffff?text=天候假面'">
+                    </div>
+                </div>
+
+                <!-- 6 大逕流分擔機制九宮格圖卡 (100% 擬真圖照版) -->
+                <div class="grid grid-cols-2 gap-3">
+
+                    <!-- 卡片 1: 植被力量 -->
+                    <div onclick="showCharacterModal('vegetation')" class="bg-white rounded-2xl p-2.5 border-2 border-sky-100 card-shadow touch-active cursor-pointer flex flex-col justify-between group">
+                        <div class="w-full h-32 rounded-xl bg-emerald-50 overflow-hidden relative mb-2 border border-emerald-100 flex items-center justify-center">
+                            <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E9%80%95%E6%B5%81%E9%9A%8A%E9%95%B7.png" 
+                                 alt="導流隊長" 
+                                 class="h-full object-contain group-hover:scale-110 transition duration-300"
+                                 onerror="this.src='https://placehold.co/150x150/10b981/ffffff?text=植被力量'">
+                        </div>
+                        <h3 class="text-xs font-extrabold text-slate-800 text-center leading-snug">
+                            植被力量：增加綠地與花園
+                        </h3>
+                    </div>
+
+                    <!-- 卡片 2: 貯存再利用 -->
+                    <div onclick="showCharacterModal('barrel')" class="bg-white rounded-2xl p-2.5 border-2 border-sky-100 card-shadow touch-active cursor-pointer flex flex-col justify-between group">
+                        <div class="w-full h-32 rounded-xl bg-rose-50 overflow-hidden relative mb-2 border border-rose-100 flex items-center justify-center">
+                            <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E9%98%B2%E7%81%BD%E5%B0%96%E5%85%B5.png" 
+                                 alt="防災尖兵" 
+                                 class="h-full object-contain group-hover:scale-110 transition duration-300"
+                                 onerror="this.src='https://placehold.co/150x150/ef4444/ffffff?text=雨水桶'">
+                        </div>
+                        <h3 class="text-xs font-extrabold text-slate-800 text-center leading-snug">
+                            貯存再利用：雨水收集桶
+                        </h3>
+                    </div>
+
+                    <!-- 卡片 3: 數據監測 -->
+                    <div onclick="showCharacterModal('weather')" class="bg-white rounded-2xl p-2.5 border-2 border-sky-100 card-shadow touch-active cursor-pointer flex flex-col justify-between group">
+                        <div class="w-full h-32 rounded-xl bg-sky-50 overflow-hidden relative mb-2 border border-sky-100 flex items-center justify-center">
+                            <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E5%A4%A9%E5%80%99%E5%81%87%E9%9D%A2.png" 
+                                 alt="天候假面" 
+                                 class="h-full object-contain group-hover:scale-110 transition duration-300"
+                                 onerror="this.src='https://placehold.co/150x150/0284c7/ffffff?text=數據監測'">
+                        </div>
+                        <h3 class="text-xs font-extrabold text-slate-800 text-center leading-snug">
+                            數據監測：智能雨量計與水情數據
+                        </h3>
+                    </div>
+
+                    <!-- 卡片 4: 透水升級 -->
+                    <div onclick="showCharacterModal('permeable')" class="bg-white rounded-2xl p-2.5 border-2 border-sky-100 card-shadow touch-active cursor-pointer flex flex-col justify-between group">
+                        <div class="w-full h-32 rounded-xl bg-amber-50 overflow-hidden relative mb-2 border border-amber-100 flex items-center justify-center">
+                            <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E9%96%8B%E7%99%BC%E5%85%88%E9%8B%92.png" 
+                                 alt="開發先鋒" 
+                                 class="h-full object-contain group-hover:scale-110 transition duration-300"
+                                 onerror="this.src='https://placehold.co/150x150/f59e0b/ffffff?text=透水升級'">
+                        </div>
+                        <h3 class="text-xs font-extrabold text-slate-800 text-center leading-snug">
+                            透水升級：建設透水路面
+                        </h3>
+                    </div>
+
+                    <!-- 卡片 5: 滯洪池保護 -->
+                    <div onclick="showCharacterModal('pond')" class="bg-white rounded-2xl p-2.5 border-2 border-sky-100 card-shadow touch-active cursor-pointer flex flex-col justify-between group">
+                        <div class="w-full h-32 rounded-xl bg-amber-100 overflow-hidden relative mb-2 border border-amber-200 flex items-center justify-center">
+                            <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E6%BB%AF%E6%B4%AA%E5%AE%88%E8%A1%9B.png" 
+                                 alt="滯洪守衛" 
+                                 class="h-full object-contain group-hover:scale-110 transition duration-300"
+                                 onerror="this.src='https://placehold.co/150x150/eab308/ffffff?text=滯洪池'">
+                        </div>
+                        <h3 class="text-xs font-extrabold text-slate-800 text-center leading-snug">
+                            滯洪池保護：減緩洪水衝擊
+                        </h3>
+                    </div>
+
+                    <!-- 卡片 6: 入滲地下 -->
+                    <div onclick="showCharacterModal('infiltration')" class="bg-white rounded-2xl p-2.5 border-2 border-sky-100 card-shadow touch-active cursor-pointer flex flex-col justify-between group">
+                        <div class="w-full h-32 rounded-xl bg-slate-100 overflow-hidden relative mb-2 border border-slate-200 flex items-center justify-center">
+                            <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E7%A9%8D%E7%A3%9A%E5%A3%AB%E5%85%B5.png" 
+                                 alt="積磚士兵" 
+                                 class="h-full object-contain group-hover:scale-110 transition duration-300"
+                                 onerror="this.src='https://placehold.co/150x150/64748b/ffffff?text=入滲地下'">
+                        </div>
+                        <h3 class="text-xs font-extrabold text-slate-800 text-center leading-snug">
+                            入滲地下：讓水滲回大地
+                        </h3>
+                    </div>
+
+                </div>
+
+                <!-- 號召底部 Call-To-Action Banner -->
+                <div class="pt-2">
+                    <button onclick="openJoinModal()" class="w-full py-3.5 px-6 bg-sky-600 hover:bg-sky-500 text-white font-black text-lg rounded-2xl shadow-lg border-2 border-sky-400 touch-active flex items-center justify-center gap-2 tracking-wide">
+                        <span>加入我們，一起分擔！</span>
+                        <i class="fa-solid fa-paper-plane text-sky-200"></i>
+                    </button>
+                </div>
+
+                <!-- 7 大英雄角色畫廊 (可橫向滑動) -->
+                <div class="bg-white rounded-2xl p-3 border border-sky-100 shadow-sm mt-3">
+                    <div class="flex justify-between items-center mb-2">
+                        <h4 class="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                            <i class="fa-solid fa-shield-halved text-sky-500"></i> 7 大逕流分擔英雄圖鑑
+                        </h4>
+                        <span class="text-[10px] text-sky-600 font-bold">👈 點擊查看角色說明</span>
+                    </div>
+                    <div class="flex gap-2.5 overflow-x-auto no-scrollbar py-1">
+                        <!-- 1. 低窪先知 -->
+                        <div onclick="showCharacterModal('lowland')" class="flex-shrink-0 w-16 text-center cursor-pointer">
+                            <div class="w-16 h-16 rounded-xl bg-sky-100 border border-sky-200 flex items-center justify-center p-1 overflow-hidden">
+                                <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E4%BD%8E%E7%AA%AA%E5%85%88%E7%9F%A5.png" alt="低窪先知" class="h-full object-contain">
+                            </div>
+                            <span class="text-[10px] font-extrabold text-slate-700 mt-1 block truncate">低窪先知</span>
+                        </div>
+                        <!-- 2. 天候假面 -->
+                        <div onclick="showCharacterModal('weather')" class="flex-shrink-0 w-16 text-center cursor-pointer">
+                            <div class="w-16 h-16 rounded-xl bg-sky-100 border border-sky-200 flex items-center justify-center p-1 overflow-hidden">
+                                <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E5%A4%A9%E5%80%99%E5%81%87%E9%9D%A2.png" alt="天候假面" class="h-full object-contain">
+                            </div>
+                            <span class="text-[10px] font-extrabold text-slate-700 mt-1 block truncate">天候假面</span>
+                        </div>
+                        <!-- 3. 滯洪守衛 -->
+                        <div onclick="showCharacterModal('pond')" class="flex-shrink-0 w-16 text-center cursor-pointer">
+                            <div class="w-16 h-16 rounded-xl bg-amber-100 border border-amber-200 flex items-center justify-center p-1 overflow-hidden">
+                                <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E6%BB%AF%E6%B4%AA%E5%AE%88%E8%A1%9B.png" alt="滯洪守衛" class="h-full object-contain">
+                            </div>
+                            <span class="text-[10px] font-extrabold text-slate-700 mt-1 block truncate">滯洪守衛</span>
+                        </div>
+                        <!-- 4. 導流隊長 -->
+                        <div onclick="showCharacterModal('vegetation')" class="flex-shrink-0 w-16 text-center cursor-pointer">
+                            <div class="w-16 h-16 rounded-xl bg-emerald-100 border border-emerald-200 flex items-center justify-center p-1 overflow-hidden">
+                                <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E9%80%95%E6%B5%81%E9%9A%8A%E9%95%B7.png" alt="導流隊長" class="h-full object-contain">
+                            </div>
+                            <span class="text-[10px] font-extrabold text-slate-700 mt-1 block truncate">導流隊長</span>
+                        </div>
+                        <!-- 5. 開發先鋒 -->
+                        <div onclick="showCharacterModal('permeable')" class="flex-shrink-0 w-16 text-center cursor-pointer">
+                            <div class="w-16 h-16 rounded-xl bg-orange-100 border border-orange-200 flex items-center justify-center p-1 overflow-hidden">
+                                <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E9%96%8B%E7%99%BC%E5%85%88%E9%8B%92.png" alt="開發先鋒" class="h-full object-contain">
+                            </div>
+                            <span class="text-[10px] font-extrabold text-slate-700 mt-1 block truncate">開發先鋒</span>
+                        </div>
+                        <!-- 6. 防災尖兵 -->
+                        <div onclick="showCharacterModal('barrel')" class="flex-shrink-0 w-16 text-center cursor-pointer">
+                            <div class="w-16 h-16 rounded-xl bg-rose-100 border border-rose-200 flex items-center justify-center p-1 overflow-hidden">
+                                <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E9%98%B2%E7%81%BD%E5%B0%96%E5%85%B5.png" alt="防災尖兵" class="h-full object-contain">
+                            </div>
+                            <span class="text-[10px] font-extrabold text-slate-700 mt-1 block truncate">防災尖兵</span>
+                        </div>
+                        <!-- 7. 積磚士兵 -->
+                        <div onclick="showCharacterModal('infiltration')" class="flex-shrink-0 w-16 text-center cursor-pointer">
+                            <div class="w-16 h-16 rounded-xl bg-slate-200 border border-slate-300 flex items-center justify-center p-1 overflow-hidden">
+                                <img src="https://raw.githubusercontent.com/tnecofarm/runoff/main/%E7%A9%8D%E7%A3%9A%E5%A3%AB%E5%85%B5.png" alt="積磚士兵" class="h-full object-contain">
+                            </div>
+                            <span class="text-[10px] font-extrabold text-slate-700 mt-1 block truncate">積磚士兵</span>
+                        </div>
+                    </div>
+                </div>
+
+            </section>
+
+            <!-- TAB 2: 案例頁面 (真實案例分類與地圖卡片) -->
+            <section id="page-cases" class="p-4 space-y-4 hidden">
+                <div class="bg-white rounded-2xl p-4 border border-sky-200 shadow-sm">
+                    <h2 class="text-lg font-black text-slate-800 playful-title flex items-center gap-2">
+                        <i class="fa-solid fa-map-location-dot text-sky-600"></i> 全台逕流分擔實踐案例
+                    </h2>
+                    <p class="text-xs text-slate-500 font-bold mt-0.5">看看各大公共工程與社區如何與水共存！</p>
+                    
+                    <!-- 分類切換按鈕 -->
+                    <div class="flex gap-2 mt-3 overflow-x-auto no-scrollbar">
+                        <button onclick="filterCases('all')" class="case-filter-btn active px-3 py-1.5 rounded-xl text-xs font-black bg-sky-600 text-white">全部案例</button>
+                        <button onclick="filterCases('school')" class="case-filter-btn px-3 py-1.5 rounded-xl text-xs font-black bg-slate-100 text-slate-600">校園透水</button>
+                        <button onclick="filterCases('park')" class="case-filter-btn px-3 py-1.5 rounded-xl text-xs font-black bg-slate-100 text-slate-600">滯洪公園</button>
+                        <button onclick="filterCases('building')" class="case-filter-btn px-3 py-1.5 rounded-xl text-xs font-black bg-slate-100 text-slate-600">綠建築雨水</button>
+                    </div>
+                </div>
+
+                <!-- 案例卡片列表 -->
+                <div id="casesList" class="space-y-3">
+                    <!-- 案例 1 -->
+                    <div class="case-card school bg-white rounded-2xl p-3 border border-sky-100 card-shadow">
+                        <div class="flex gap-3">
+                            <div class="w-24 h-24 rounded-xl bg-sky-100 flex-shrink-0 overflow-hidden relative border">
+                                <img src="https://images.unsplash.com/photo-1584467735871-8e85353a8413?auto=format&fit=crop&w=300&q=80" alt="校園透水磚" class="w-full h-full object-cover">
+                                <span class="absolute top-1 left-1 bg-sky-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">台南市</span>
+                            </div>
+                            <div class="flex-grow flex flex-col justify-between">
+                                <div>
+                                    <h3 class="text-sm font-extrabold text-slate-800">安佃國水理韌性示範校園</h3>
+                                    <p class="text-[11px] text-slate-500 line-clamp-2 mt-1">全面鋪設透水磚車道與屋頂花園，年降雨量可滲透儲留超過 150 噸。</p>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px] font-bold text-sky-600 mt-2">
+                                    <span>🧱 透水磚 + 🌿 綠屋頂</span>
+                                    <span class="bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200">吸水率 +35%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 案例 2 -->
+                    <div class="case-card park bg-white rounded-2xl p-3 border border-sky-100 card-shadow">
+                        <div class="flex gap-3">
+                            <div class="w-24 h-24 rounded-xl bg-emerald-100 flex-shrink-0 overflow-hidden relative border">
+                                <img src="https://images.unsplash.com/photo-1519331379826-f10be5486c6f?auto=format&fit=crop&w=300&q=80" alt="滯洪公園" class="w-full h-full object-cover">
+                                <span class="absolute top-1 left-1 bg-emerald-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">高雄市</span>
+                            </div>
+                            <div class="flex-grow flex flex-col justify-between">
+                                <div>
+                                    <h3 class="text-sm font-extrabold text-slate-800">都會區多功能滯洪生態公園</h3>
+                                    <p class="text-[11px] text-slate-500 line-clamp-2 mt-1">晴天為社區居民運動休閒公園，暴雨時蓄洪容積達 10,000 立方公尺。</p>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px] font-bold text-emerald-600 mt-2">
+                                    <span>🏞️ 滯洪池 + 🌲 生態植被</span>
+                                    <span class="bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">防淹力 +50%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 案例 3 -->
+                    <div class="case-card building bg-white rounded-2xl p-3 border border-sky-100 card-shadow">
+                        <div class="flex gap-3">
+                            <div class="w-24 h-24 rounded-xl bg-amber-100 flex-shrink-0 overflow-hidden relative border">
+                                <img src="https://images.unsplash.com/photo-1513694203232-719a280e022f?auto=format&fit=crop&w=300&q=80" alt="綠建築雨水回收" class="w-full h-full object-cover">
+                                <span class="absolute top-1 left-1 bg-amber-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded">台北市</span>
+                            </div>
+                            <div class="flex-grow flex flex-col justify-between">
+                                <div>
+                                    <h3 class="text-sm font-extrabold text-slate-800">公宅智慧雨水貯留再利用系統</h3>
+                                    <p class="text-[11px] text-slate-500 line-clamp-2 mt-1">設置大型地下雨水積磚儲水槽與雨水桶，雨水回收用於社區花園灌溉與清洗。</p>
+                                </div>
+                                <div class="flex justify-between items-center text-[10px] font-bold text-amber-600 mt-2">
+                                    <span>🪣 雨水桶 + 🔲 地下積磚</span>
+                                    <span class="bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">水資源節約 25%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: 遊戲頁面 (雨水保衛戰 3D 沙盒與語音問答) -->
+            <section id="page-game" class="p-3 space-y-3 hidden">
+                
+                <!-- 遊戲看板頂列 (水金幣 & 防淹力) -->
+                <div class="bg-slate-900 border-2 border-amber-500 rounded-2xl p-3 text-white flex justify-between items-center shadow-md">
+                    <div class="flex items-center gap-2">
+                        <div class="w-8 h-8 bg-amber-500 text-slate-950 rounded-xl flex items-center justify-center font-black">
+                            🎲
+                        </div>
+                        <div>
+                            <h3 class="text-xs font-black text-amber-400 playful-title">雨水保衛戰 3D 沙盒</h3>
+                            <p class="text-[10px] text-slate-300">互動解鎖 3D 防洪設施</p>
+                        </div>
+                    </div>
+                    <div class="flex gap-2 text-xs font-bold">
+                        <div class="bg-slate-950 px-2.5 py-1 rounded-xl border border-amber-400 flex items-center gap-1">
+                            <span class="text-amber-400">🪙</span>
+                            <span id="gameCoins" class="text-amber-300 font-black">100</span>
+                        </div>
+                        <div class="bg-slate-950 px-2.5 py-1 rounded-xl border border-emerald-400 flex items-center gap-1">
+                            <span class="text-emerald-400">🛡️</span>
+                            <span id="gameResilience" class="text-emerald-300 font-black">20%</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3D 沙盒控制與視圖區 -->
+                <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl p-3 shadow-md relative">
+                    <!-- 天氣切換 -->
+                    <div class="grid grid-cols-4 gap-1.5 mb-2">
+                        <button onclick="setWeather('sunny')" id="btn-weather-sunny" class="weather-btn py-1.5 rounded-xl text-[11px] font-black bg-amber-500 text-slate-950 shadow">
+                            ☀️ 晴天
+                        </button>
+                        <button onclick="setWeather('drizzle')" id="btn-weather-drizzle" class="weather-btn py-1.5 rounded-xl text-[11px] font-black bg-slate-800 text-slate-300">
+                            🌧️ 小雨
+                        </button>
+                        <button onclick="setWeather('storm')" id="btn-weather-storm" class="weather-btn py-1.5 rounded-xl text-[11px] font-black bg-slate-800 text-slate-300">
+                            ⛈️ 暴雨
+                        </button>
+                        <button onclick="setWeather('typhoon')" id="btn-weather-typhoon" class="weather-btn py-1.5 rounded-xl text-[11px] font-black bg-slate-800 text-slate-300">
+                            🌀 颱風
+                        </button>
+                    </div>
+
+                    <!-- 3D Canvas 容器 -->
+                    <div id="threejs-canvas-container" class="bg-slate-950 border-2 border-slate-800 rounded-xl overflow-hidden relative shadow-inner">
+                        <div class="absolute top-2 left-2 z-10 bg-slate-900/80 backdrop-blur px-2.5 py-0.5 rounded-lg border border-slate-700 text-[10px] font-bold text-amber-300">
+                            🌊 積水深度: <span id="floodDepth" class="text-xs font-black text-white">0</span> mm
+                        </div>
+                        <div class="absolute bottom-2 right-2 z-10 bg-red-600/90 text-white text-[10px] font-black px-2 py-0.5 rounded shadow animate-pulse">
+                            🖐️ 按住可旋轉 3D 視角 / 點擊水面排水
+                        </div>
+                    </div>
+
+                    <!-- 數據指標 -->
+                    <div class="grid grid-cols-2 gap-2 text-[10px] font-bold bg-slate-950 p-2 rounded-xl mt-2 border border-slate-800 text-slate-300">
+                        <div>
+                            <div>🏞️ 3D 吸水率：<span id="absorptionVal" class="text-emerald-400 font-black">慢 (20%)</span></div>
+                            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-1">
+                                <div id="absorptionBar" class="bg-emerald-400 h-full transition-all duration-300" style="width: 20%;"></div>
+                            </div>
+                        </div>
+                        <div>
+                            <div>🚨 逕流積水危險度：<span id="runoffSpeedVal" class="text-red-400 font-black">高</span></div>
+                            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-1">
+                                <div id="runoffSpeedBar" class="bg-red-500 h-full transition-all duration-300" style="width: 80%;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 設施解鎖商店 -->
+                <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl p-3 shadow-md text-white space-y-2">
+                    <h4 class="text-xs font-black text-sky-300 flex items-center justify-between">
+                        <span><i class="fa-solid fa-hammer text-emerald-400 mr-1"></i> 解鎖 3D 吸水寶物設施</span>
+                        <span class="text-[10px] text-amber-400">實體化呈現</span>
+                    </h4>
+                    
+                    <!-- 設施 1: 透水磚 -->
+                    <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 flex justify-between items-center gap-2 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🧱</span>
+                            <div>
+                                <div class="font-black text-slate-200">透水磚車道</div>
+                                <div class="text-[10px] text-slate-400">吸水力 +15%</div>
+                            </div>
+                        </div>
+                        <button onclick="buyUpgrade('permeable')" id="btn-upgrade-permeable" class="px-3 py-1.5 bg-amber-500 text-slate-950 font-black text-xs rounded-xl active:scale-95">
+                            🪙 40
+                        </button>
+                    </div>
+
+                    <!-- 設施 2: 綠屋頂 -->
+                    <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 flex justify-between items-center gap-2 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🌿</span>
+                            <div>
+                                <div class="font-black text-slate-200">學校綠屋頂</div>
+                                <div class="text-[10px] text-slate-400">防淹力 +15%</div>
+                            </div>
+                        </div>
+                        <button onclick="buyUpgrade('greenroof')" id="btn-upgrade-greenroof" class="px-3 py-1.5 bg-amber-500 text-slate-950 font-black text-xs rounded-xl active:scale-95">
+                            🪙 50
+                        </button>
+                    </div>
+
+                    <!-- 設施 3: 雨水桶 -->
+                    <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 flex justify-between items-center gap-2 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🪣</span>
+                            <div>
+                                <div class="font-black text-slate-200">住宅雨水桶</div>
+                                <div class="text-[10px] text-slate-400">吸水力 +10%</div>
+                            </div>
+                        </div>
+                        <button onclick="buyUpgrade('rainbarrel')" id="btn-upgrade-rainbarrel" class="px-3 py-1.5 bg-amber-500 text-slate-950 font-black text-xs rounded-xl active:scale-95">
+                            🪙 30
+                        </button>
+                    </div>
+
+                    <!-- 設施 4: 滯洪池 -->
+                    <div class="bg-slate-950 p-2 rounded-xl border border-slate-800 flex justify-between items-center gap-2 text-xs">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xl">🏞️</span>
+                            <div>
+                                <div class="font-black text-slate-200">滯洪公園池</div>
+                                <div class="text-[10px] text-slate-400">吸水力 +20%</div>
+                            </div>
+                        </div>
+                        <button onclick="buyUpgrade('pond')" id="btn-upgrade-pond" class="px-3 py-1.5 bg-amber-500 text-slate-950 font-black text-xs rounded-xl active:scale-95">
+                            🪙 80
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 語音朗讀答題區 (Warm paper 卡片) -->
+                <div class="warm-paper rounded-2xl p-4 text-slate-900 space-y-3 relative">
+                    <div class="flex justify-between items-center border-b border-amber-900/20 pb-2">
+                        <span id="gameChapterBadge" class="text-xs bg-slate-900 text-amber-400 px-3 py-1 rounded-full font-black">
+                            第 1 關：雨水降落去哪裡？
+                        </span>
+                        <button onclick="speakQuestion()" class="bg-red-600 hover:bg-red-500 text-white font-black text-xs px-3 py-1.5 rounded-xl flex items-center gap-1 shadow active:scale-95">
+                            <i class="fa-solid fa-volume-high animate-pulse"></i> 🔊 聽題目
+                        </button>
+                    </div>
+
+                    <!-- 題目卡片主體 -->
+                    <div id="quizContainer" class="space-y-3">
+                        <div>
+                            <span id="questionTypeBadge" class="text-[10px] font-black text-amber-800 border border-amber-800/30 bg-amber-100 px-2 py-0.5 rounded-full">
+                                題目
+                            </span>
+                            <h4 id="questionText" class="text-sm font-extrabold text-slate-950 mt-1 playful-title leading-relaxed">
+                                下大雨的時候，雨水降落在下列哪一種地面，最容易排不掉、導致路上大淹水？
+                            </h4>
+                        </div>
+
+                        <!-- 選項列表 -->
+                        <div id="optionsBox" class="space-y-2">
+                            <!-- 動態填入選項 -->
+                        </div>
+                    </div>
+
+                    <!-- 答題回饋 -->
+                    <div id="feedbackContainer" class="hidden text-center py-4 flex-col items-center justify-center gap-2">
+                        <div id="feedbackIcon" class="text-4xl"></div>
+                        <h4 id="feedbackTitle" class="text-lg font-black playful-title"></h4>
+                        <p id="feedbackDesc" class="text-xs font-bold text-slate-800 max-w-xs mx-auto leading-relaxed"></p>
+                        <button onclick="nextQuestion()" class="px-6 py-2 bg-amber-600 text-white font-black rounded-xl text-sm mt-2 shadow active:scale-95">
+                            前進下一題 <i class="fa-solid fa-arrow-right ml-1"></i>
+                        </button>
+                    </div>
+
+                    <!-- 結算 -->
+                    <div id="resultsContainer" class="hidden text-center py-3 flex-col items-center gap-2">
+                        <h3 class="text-lg font-black text-amber-950 playful-title">🎉 恭喜完成本關考驗！</h3>
+                        <div id="starsArea" class="text-3xl text-amber-500">🌟🌟🌟</div>
+                        <p id="resultsDesc" class="text-xs font-bold text-slate-800 max-w-xs"></p>
+                        <button onclick="restartLevel()" class="px-6 py-2 bg-emerald-600 text-white font-black rounded-xl text-xs mt-1 shadow active:scale-95">
+                            重新挑戰 🚀
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 命運大輪盤 -->
+                <div class="bg-slate-900 border-2 border-slate-700 rounded-2xl p-3 text-white flex justify-between items-center gap-2">
+                    <div class="flex items-center gap-2">
+                        <span class="text-2xl">🎲</span>
+                        <div>
+                            <h4 class="text-xs font-black text-slate-100">命運大骰子</h4>
+                            <p class="text-[10px] text-slate-400">體會極端氣候突發事件！</p>
+                        </div>
+                    </div>
+                    <button onclick="rollFateDice()" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-black text-xs rounded-xl shadow active:scale-95 shrink-0">
+                        🎲 投擲 (10金幣)
+                    </button>
+                </div>
+
+            </section>
+
+            <!-- TAB 4: 我的貢獻頁面 (民眾參與量表與認證卡) -->
+            <section id="page-contribution" class="p-4 space-y-4 hidden">
+                <div class="bg-white rounded-2xl p-4 border border-sky-200 shadow-sm text-center">
+                    <div class="w-16 h-16 rounded-full bg-sky-100 border-2 border-sky-400 mx-auto flex items-center justify-center text-3xl mb-2">
+                        🏆
+                    </div>
+                    <h2 class="text-lg font-black text-slate-800 playful-title">我的逕流分擔貢獻卡</h2>
+                    <p class="text-xs text-slate-500 font-bold mt-0.5">勾選你在生活中的逕流分擔行動，計算防淹點數！</p>
+                    
+                    <div class="mt-3 bg-sky-50 border border-sky-200 rounded-xl p-3 flex justify-around items-center">
+                        <div>
+                            <div class="text-[10px] text-slate-500 font-bold">累積防淹分擔點數</div>
+                            <div id="userScore" class="text-2xl font-black text-sky-600">60 分</div>
+                        </div>
+                        <div class="h-8 border-r border-sky-200"></div>
+                        <div>
+                            <div class="text-[10px] text-slate-500 font-bold">獲得成就稱號</div>
+                            <div id="userBadgeTitle" class="text-sm font-black text-emerald-600">🌿 綠色水花衛士</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 檢核表 -->
+                <div class="bg-white rounded-2xl p-4 border border-sky-100 card-shadow space-y-3">
+                    <h3 class="text-xs font-black text-slate-700 flex items-center gap-1.5">
+                        <i class="fa-solid fa-list-check text-sky-600"></i> 生活逕流分擔實踐檢核表
+                    </h3>
+
+                    <label class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-sky-50 transition">
+                        <input type="checkbox" checked onchange="updateContributionScore()" class="contrib-check w-4 h-4 text-sky-600 rounded">
+                        <span class="text-xs font-bold text-slate-700">🌱 家中露台或陽台有種植盆栽植物（+20分）</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-sky-50 transition">
+                        <input type="checkbox" checked onchange="updateContributionScore()" class="contrib-check w-4 h-4 text-sky-600 rounded">
+                        <span class="text-xs font-bold text-slate-700">🪣 設置雨水回收桶儲水澆花清洗（+20分）</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-sky-50 transition">
+                        <input type="checkbox" checked onchange="updateContributionScore()" class="contrib-check w-4 h-4 text-sky-600 rounded">
+                        <span class="text-xs font-bold text-slate-700">🧹 定期清理自家門口雨水溝蓋雜物（+20分）</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-sky-50 transition">
+                        <input type="checkbox" onchange="updateContributionScore()" class="contrib-check w-4 h-4 text-sky-600 rounded">
+                        <span class="text-xs font-bold text-slate-700">🧱 庭院或鋪面優先選擇透水磚或草皮（+20分）</span>
+                    </label>
+
+                    <label class="flex items-center gap-3 p-2.5 rounded-xl bg-slate-50 border border-slate-200 cursor-pointer hover:bg-sky-50 transition">
+                        <input type="checkbox" onchange="updateContributionScore()" class="contrib-check w-4 h-4 text-sky-600 rounded">
+                        <span class="text-xs font-bold text-slate-700">📢 主動向親友推廣「逕流分擔」觀念（+20分）</span>
+                    </label>
+                </div>
+
+                <!-- 認證卡生成按鈕 -->
+                <button onclick="shareContributionCard()" class="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-black text-sm rounded-xl shadow-md flex items-center justify-center gap-2 active:scale-95">
+                    <i class="fa-solid fa-share-nodes"></i> 生成我的逕流分擔榮譽卡
+                </button>
+            </section>
+
+        </main>
+
+        <!-- 底部固定四分頁導覽列 (與設計圖完全一致) -->
+        <nav class="absolute bottom-0 left-0 right-0 bg-white border-t border-sky-100 grid grid-cols-4 py-2 px-1 text-center shadow-lg rounded-b-[40px] z-30">
+            <!-- Tab 1: 知識 -->
+            <button onclick="switchTab('knowledge')" id="nav-knowledge" class="nav-tab text-sky-600 flex flex-col items-center justify-center transition">
+                <i class="fa-solid fa-book-open text-lg"></i>
+                <span class="text-[11px] font-extrabold mt-0.5">知識</span>
+            </button>
+
+            <!-- Tab 2: 案例 -->
+            <button onclick="switchTab('cases')" id="nav-cases" class="nav-tab text-slate-400 flex flex-col items-center justify-center transition">
+                <i class="fa-solid fa-calendar-days text-lg"></i>
+                <span class="text-[11px] font-extrabold mt-0.5">案例</span>
+            </button>
+
+            <!-- Tab 3: 遊戲 -->
+            <button onclick="switchTab('game')" id="nav-game" class="nav-tab text-slate-400 flex flex-col items-center justify-center transition">
+                <i class="fa-solid fa-gamepad text-lg"></i>
+                <span class="text-[11px] font-extrabold mt-0.5">遊戲</span>
+            </button>
+
+            <!-- Tab 4: 我的貢獻 -->
+            <button onclick="switchTab('contribution')" id="nav-contribution" class="nav-tab text-slate-400 flex flex-col items-center justify-center transition">
+                <i class="fa-solid fa-circle-user text-lg"></i>
+                <span class="text-[11px] font-extrabold mt-0.5">我的貢獻</span>
+            </button>
+        </nav>
+
+    </div>
+
+    <!-- 角色詳細說明 Modal -->
+    <div id="characterModal" class="fixed inset-0 bg-slate-950/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-xs w-full p-5 text-slate-800 border-4 border-sky-400 shadow-2xl relative flex flex-col items-center">
+            <button onclick="closeCharacterModal()" class="absolute top-3 right-3 text-slate-400 hover:text-slate-600 text-lg w-7 h-7 flex items-center justify-center rounded-full bg-slate-100">
+                ✕
+            </button>
+            <div class="w-32 h-32 rounded-2xl bg-sky-50 border border-sky-200 overflow-hidden p-1 flex items-center justify-center mb-3">
+                <img id="modalCharImg" src="" alt="角色圖片" class="h-full object-contain">
+            </div>
+            <h3 id="modalCharTitle" class="text-lg font-black text-sky-900 playful-title text-center"></h3>
+            <span id="modalCharRole" class="text-[11px] font-bold bg-sky-100 text-sky-700 px-3 py-0.5 rounded-full mt-1"></span>
+            <p id="modalCharDesc" class="text-xs text-slate-600 font-bold mt-3 text-center leading-relaxed"></p>
+            <div class="bg-amber-50 border border-amber-200 rounded-xl p-2.5 mt-3 text-[11px] font-extrabold text-amber-900 text-center w-full" id="modalCharAction">
+            </div>
+            <button onclick="closeCharacterModal()" class="w-full py-2.5 bg-sky-600 text-white font-black text-xs rounded-xl mt-4 shadow">
+                我知道了！
+            </button>
+        </div>
+    </div>
+
+    <!-- 命運事件 Modal -->
+    <div id="eventModal" class="fixed inset-0 bg-slate-950/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="warm-paper max-w-xs w-full rounded-3xl p-5 text-slate-900 flex flex-col items-center text-center gap-3">
+            <div id="eventIcon" class="text-4xl"></div>
+            <h3 id="eventTitle" class="text-lg font-black playful-title text-red-800"></h3>
+            <p id="eventDescription" class="text-xs font-bold text-slate-800 leading-relaxed"></p>
+            <div id="eventRewardPenalty" class="bg-white/90 p-2 rounded-xl border border-slate-300 w-full font-black text-xs text-red-700"></div>
+            <button onclick="closeEventModal()" class="w-full py-2 bg-red-700 text-white font-black rounded-xl text-xs shadow">
+                接受命運 🍀
+            </button>
+        </div>
+    </div>
+
+    <!-- 說明 Modal -->
+    <div id="helpModal" class="fixed inset-0 bg-slate-950/80 z-50 hidden flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl max-w-xs w-full p-5 text-slate-800 border-2 border-sky-400 shadow-2xl space-y-3">
+            <h3 class="text-base font-black text-sky-900 playful-title text-center">💡 什麼是逕流分擔？</h3>
+            <p class="text-xs font-bold text-slate-600 leading-relaxed">
+                面對極端氣候大暴雨，單靠傳統水道排水是不夠的！「逕流分擔」就是讓社區綠地、透水路面、住宅雨水桶、滯洪池共同幫忙分擔雨水，達成不淹水、與水共存的綠能韌性城市！
+            </p>
+            <button onclick="closeHelpModal()" class="w-full py-2 bg-sky-600 text-white font-black text-xs rounded-xl shadow">
+                瞭解了，開始體驗！
+            </button>
+        </div>
+    </div>
+
+    <script>
+        
+        // 7 大逕流分擔英雄資料庫
+        const CHARACTERS = {
+            weather: {
+                name: "天候假面",
+                role: "數據監測夥伴",
+                img: "https://raw.githubusercontent.com/tnecofarm/runoff/main/%E5%A4%A9%E5%80%99%E5%81%87%E9%9D%A2.png",
+                desc: "掌握全天候雨量與水情數據，透過智能感測器隨時預警暴雨降臨，引導社區進行第一時間防洪反應！",
+                action: "📊 智慧功能：即時監測社區積水與氣候趨勢"
+            },
+            barrel: {
+                name: "防災尖兵",
+                role: "貯存再利用夥伴",
+                img: "https://raw.githubusercontent.com/tnecofarm/runoff/main/%E9%98%B2%E7%81%BD%E5%B0%96%E5%85%B5.png",
+                desc: "守護在住宅屋簷下，大雨來臨時把雨水先行貯存於雨水桶中，平時還能拿來澆花洗車，減輕水溝壓力！",
+                action: "🪣 智慧功能：削減雨水峰值，再利用水資源"
+            },
+            vegetation: {
+                name: "導流隊長",
+                role: "植被吸水夥伴",
+                img: "https://raw.githubusercontent.com/tnecofarm/runoff/main/%E9%80%95%E6%B5%81%E9%9A%8A%E9%95%B7.png",
+                desc: "擁有大自然綠色力量！利用花園草地與綠屋頂抓牢降雨，讓雨水慢一點流入排水系統。",
+                action: "🌿 智慧功能：植物攔截雨水，增加城市綠綠吸水空間"
+            },
+            permeable: {
+                name: "開發先鋒",
+                role: "透水路面夥伴",
+                img: "https://raw.githubusercontent.com/tnecofarm/runoff/main/%E9%96%8B%E7%99%BC%E5%85%88%E9%8B%92.png",
+                desc: "將傳統死硬水泥地面升級為吸水透水磚，讓降落在大街上的雨水直接垂直穿透入地下！",
+                action: "🧱 智慧功能：消除路上積水，打造會呼吸的人行道"
+            },
+            pond: {
+                name: "滯洪守衛",
+                role: "滯洪池保護夥伴",
+                img: "https://raw.githubusercontent.com/tnecofarm/runoff/main/%E6%BB%AF%E6%B4%AA%E5%AE%88%E8%A1%9B.png",
+                desc: "鎮守在社區公園大池塘，暴雨來襲時暫存巨量雨水，保護社區街道不被強降雨吞沒！",
+                action: "🏞️ 智慧功能：滯留極端暴雨，提供休閒景觀"
+            },
+            infiltration: {
+                name: "積磚士兵",
+                role: "地下入滲夥伴",
+                img: "https://raw.githubusercontent.com/tnecofarm/runoff/main/%E7%A9%8D%E7%A3%9A%E5%A3%AB%E5%85%B5.png",
+                desc: "隱身在水溝與地底下的鋼鐵骨架，具有極高孔隙率，能引導大量逕流回補地下水脈！",
+                action: "🔲 智慧功能：地底高容量儲水，讓水滲回大地"
+            },
+            lowland: {
+                name: "低窪先知",
+                role: "地勢預警夥伴",
+                img: "https://raw.githubusercontent.com/tnecofarm/runoff/main/%E4%BD%8E%E7%AA%AA%E5%85%88%E7%9F%A5.png",
+                desc: "洞悉社區微地形，專門預測容易積水的低窪地區，引導資源優先佈署防洪與保全措施！",
+                action: "🔮 智慧功能：精準預測低窪水情，超前部署"
+            }
+        };
+
+        // 題目庫
+        const QUIZ_QUESTIONS = [
+            {
+                q: "下大雨時，雨水落在哪種地面最容易滲入地下、避免路面大淹水？",
+                o: ["泥土與草地 🌲", "堅硬水泥柏油路 🧱"],
+                a: 0,
+                type: "雨水去哪裡？"
+            },
+            {
+                q: "如果我們在社區住宅裝設「雨水收集桶」，主要功能是？",
+                o: ["用來存零錢 🪙", "在大雨時先存水減輕排水負擔 🪣"],
+                a: 1,
+                type: "雨水桶功用"
+            },
+            {
+                q: "將大樓屋頂改造成「綠屋頂」，對逕流分擔有何好處？",
+                o: ["植物泥土幫忙攔截雨水慢速流下 🌿", "讓天空自動停止下雨 ☁️"],
+                a: 0,
+                type: "綠屋頂好處"
+            }
+        ];
+
+        // 命運事件
+        const FATE_EVENTS = [
+            {
+                title: "梅雨大爆發！",
+                icon: "🌧️",
+                desc: "天空突然烏雲密布，降下一陣大雨！",
+                penalty: "降水增加！積水上升了 20 公厘。",
+                action: () => { adjustFlood(20); setWeather('storm'); }
+            },
+            {
+                title: "打掃水溝獎勵！",
+                icon: "🏆",
+                desc: "大家一起清理排水溝的樹葉雜物，獲得獎勵金！",
+                penalty: "太棒了！獎勵 30 枚水金幣！",
+                action: () => { adjustCoins(30); }
+            }
+        ];
+
+        // 遊戲狀態與變數
+        let waterCoins = 100;
+        let resilienceIndex = 20;
+        let floodDepth = 0;
+        let rainStatus = 'sunny';
+        let currentQuestionIdx = 0;
+        let upgradesPurchased = { permeable: false, greenroof: false, rainbarrel: false, pond: false };
+
+        // 3D Three.js 變數
+        let scene, camera, renderer, controls;
+        let waterMesh, rainParticles, rainGeometry;
+        let schoolRoofMesh, houseDrivewayMesh, rainBarrelMesh, pondParkMesh;
+        let dirLight;
+
+        window.onload = function() {
+            updateTime();
+            setInterval(updateTime, 10000);
+
+            // 初始化 3D 繪圖
+            init3DScene();
+            loadQuizQuestion();
+
+            // 啟動水理計算迴圈
+            setInterval(updateHydrologyLoop, 1500);
+        };
+
+        function updateTime() {
+            const now = new Date();
+            const h = String(now.getHours()).padStart(2, '0');
+            const m = String(now.getMinutes()).padStart(2, '0');
+            document.getElementById("currentTime").innerText = `${h}:${m}`;
+        }
+
+        // 分頁切換
+        function switchTab(tabId) {
+            document.querySelectorAll("main > section").forEach(sec => sec.classList.add("hidden"));
+            document.getElementById(`page-${tabId}`).classList.remove("hidden");
+
+            document.querySelectorAll(".nav-tab").forEach(btn => {
+                btn.classList.remove("text-sky-600");
+                btn.classList.add("text-slate-400");
+            });
+
+            const activeBtn = document.getElementById(`nav-${tabId}`);
+            if (activeBtn) {
+                activeBtn.classList.remove("text-slate-400");
+                activeBtn.classList.add("text-sky-600");
+            }
+
+            if (tabId === 'game') {
+                setTimeout(() => { onResize3D(); }, 100);
+            }
+        }
+
+        function init3DScene() {
+            const container = document.getElementById("threejs-canvas-container");
+            const width = container.clientWidth || 300;
+            const height = container.clientHeight || 240;
+
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0f172a);
+
+            camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 1000);
+            camera.position.set(12, 14, 18);
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(width, height);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            container.appendChild(renderer.domElement);
+
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2.1;
+            controls.target.set(0, 1, 0);
+
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+
+            dirLight = new THREE.DirectionalLight(0xfff5ea, 1.2);
+            dirLight.position.set(15, 20, 10);
+            dirLight.castShadow = true;
+            scene.add(dirLight);
+
+            // 建立社區 3D 地型
+            create3DTerrain();
+            create3DRain();
+
+            renderer.domElement.addEventListener('click', on3DClick);
+            animate3D();
+        }
+
+        function create3DTerrain() {
+            // 地基
+            const baseGeo = new THREE.BoxGeometry(16, 0.8, 16);
+            const baseMat = new THREE.MeshStandardMaterial({ color: 0x334155 });
+            const baseMesh = new THREE.Mesh(baseGeo, baseMat);
+            baseMesh.position.y = -0.4;
+            scene.add(baseMesh);
+
+            // 吸水草地區
+            const grassGeo = new THREE.BoxGeometry(7, 0.1, 14);
+            const grassMat = new THREE.MeshStandardMaterial({ color: 0x15803d });
+            const grassMesh = new THREE.Mesh(grassGeo, grassMat);
+            grassMesh.position.set(-3.5, 0.05, 0);
+            scene.add(grassMesh);
+
+            // 學校大樓
+            const schoolGeo = new THREE.BoxGeometry(4, 3, 5);
+            const schoolMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8 });
+            const schoolMesh = new THREE.Mesh(schoolGeo, schoolMat);
+            schoolMesh.position.set(-4, 1.5, -3.5);
+            scene.add(schoolMesh);
+
+            // 屋頂
+            const roofGeo = new THREE.BoxGeometry(3.8, 0.2, 4.8);
+            const roofMat = new THREE.MeshStandardMaterial({ color: 0x64748b });
+            schoolRoofMesh = new THREE.Mesh(roofGeo, roofMat);
+            schoolRoofMesh.position.set(-4, 3.1, -3.5);
+            scene.add(schoolRoofMesh);
+
+            // 住宅與車道
+            const houseGeo = new THREE.BoxGeometry(3, 2, 3);
+            const houseMat = new THREE.MeshStandardMaterial({ color: 0xf87171 });
+            const houseMesh = new THREE.Mesh(houseGeo, houseMat);
+            houseMesh.position.set(-4, 1, 3.5);
+            scene.add(houseMesh);
+
+            const drivewayGeo = new THREE.BoxGeometry(3.5, 0.05, 3.5);
+            const drivewayMat = new THREE.MeshStandardMaterial({ color: 0x475569 });
+            houseDrivewayMesh = new THREE.Mesh(drivewayGeo, drivewayMat);
+            houseDrivewayMesh.position.set(-0.2, 0.08, 3.5);
+            scene.add(houseDrivewayMesh);
+
+            // 雨水桶
+            const barrelGeo = new THREE.CylinderGeometry(0.4, 0.4, 1, 16);
+            const barrelMat = new THREE.MeshStandardMaterial({ color: 0x0284c7 });
+            rainBarrelMesh = new THREE.Mesh(barrelGeo, barrelMat);
+            rainBarrelMesh.position.set(-2.2, 0.5, 2.2);
+            rainBarrelMesh.visible = false;
+            scene.add(rainBarrelMesh);
+
+            // 滯洪池
+            const pondGeo = new THREE.CylinderGeometry(2.5, 2.8, 0.3, 24);
+            const pondMat = new THREE.MeshStandardMaterial({ color: 0x047857 });
+            pondParkMesh = new THREE.Mesh(pondGeo, pondMat);
+            pondParkMesh.position.set(4, 0.06, 2.5);
+            pondParkMesh.visible = false;
+            scene.add(pondParkMesh);
+
+            // 積水層 Mesh
+            const waterGeo = new THREE.BoxGeometry(15.8, 1, 15.8);
+            const waterMat = new THREE.MeshStandardMaterial({
+                color: 0x38bdf8,
+                transparent: true,
+                opacity: 0.65
+            });
+            waterMesh = new THREE.Mesh(waterGeo, waterMat);
+            waterMesh.position.set(0, -0.5, 0);
+            scene.add(waterMesh);
+        }
+
+        function create3DRain() {
+            const count = 400;
+            rainGeometry = new THREE.BufferGeometry();
+            const pos = new Float32Array(count * 3);
+            for (let i = 0; i < count * 3; i += 3) {
+                pos[i] = (Math.random() - 0.5) * 20;
+                pos[i + 1] = Math.random() * 15 + 2;
+                pos[i + 2] = (Math.random() - 0.5) * 20;
+            }
+            rainGeometry.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            const rainMat = new THREE.PointsMaterial({ color: 0x7dd3fc, size: 0.15, transparent: true, opacity: 0.8 });
+            rainParticles = new THREE.Points(rainGeometry, rainMat);
+            rainParticles.visible = false;
+            scene.add(rainParticles);
+        }
+
+        function animate3D() {
+            requestAnimationFrame(animate3D);
+            if (controls) controls.update();
+
+            if (rainParticles && rainParticles.visible) {
+                const pos = rainGeometry.attributes.position.array;
+                const spd = rainStatus === 'typhoon' ? 0.4 : rainStatus === 'storm' ? 0.25 : 0.12;
+                for (let i = 1; i < pos.length; i += 3) {
+                    pos[i] -= spd;
+                    if (pos[i] < 0) pos[i] = 15;
+                }
+                rainGeometry.attributes.position.needsUpdate = true;
+            }
+
+            if (waterMesh) {
+                let targetY = -0.5 + (floodDepth / 160) * 2.2;
+                waterMesh.position.y += (targetY - waterMesh.position.y) * 0.1;
+            }
+
+            if (renderer && scene && camera) {
+                renderer.render(scene, camera);
+            }
+        }
+
+        function on3DClick(e) {
+            if (floodDepth > 0) {
+                floodDepth = Math.max(0, floodDepth - 10);
+                adjustCoins(1);
+                updateGameDashboard();
+            }
+        }
+
+        function onResize3D() {
+            const container = document.getElementById("threejs-canvas-container");
+            if (!container || !renderer) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+            camera.aspect = w / h;
+            camera.updateProjectionMatrix();
+            renderer.setSize(w, h);
+        }
+
+        function updateHydrologyLoop() {
+            let rainInflow = 0;
+            if (rainStatus === 'drizzle') rainInflow = 10;
+            else if (rainStatus === 'storm') rainInflow = 28;
+            else if (rainStatus === 'typhoon') rainInflow = 50;
+
+            let maxDrain = (resilienceIndex / 100) * 18;
+
+            if (rainInflow > 0) {
+                floodDepth = Math.max(0, floodDepth + Math.round(rainInflow - maxDrain));
+            } else if (floodDepth > 0) {
+                floodDepth = Math.max(0, floodDepth - Math.round(maxDrain + 4));
+            }
+
+            let runoffSpeed = Math.max(0, Math.round((rainInflow * 3.5) - (resilienceIndex * 1.2)));
+            document.getElementById("runoffSpeedVal").innerText = runoffSpeed > 80 ? "高危險" : runoffSpeed > 30 ? "中等" : "安全 ⭕";
+            document.getElementById("runoffSpeedBar").style.width = `${Math.min(100, (runoffSpeed / 150) * 100)}%`;
+            document.getElementById("floodDepth").innerText = floodDepth;
+        }
+
+        function setWeather(weather) {
+            rainStatus = weather;
+            document.querySelectorAll('.weather-btn').forEach(b => {
+                b.className = "weather-btn py-1.5 rounded-xl text-[11px] font-black bg-slate-800 text-slate-300";
+            });
+            const activeB = document.getElementById(`btn-weather-${weather}`);
+            if (activeB) activeB.className = "weather-btn py-1.5 rounded-xl text-[11px] font-black bg-amber-500 text-slate-950 shadow";
+
+            if (weather === 'sunny') {
+                scene.background = new THREE.Color(0x0f172a);
+                rainParticles.visible = false;
+            } else {
+                scene.background = new THREE.Color(0x05070a);
+                rainParticles.visible = true;
+            }
+        }
+
+        function buyUpgrade(type) {
+            let cost = 0, res = 0;
+            if (type === 'permeable') { cost = 40; res = 15; }
+            else if (type === 'greenroof') { cost = 50; res = 15; }
+            else if (type === 'rainbarrel') { cost = 30; res = 10; }
+            else if (type === 'pond') { cost = 80; res = 20; }
+
+            if (waterCoins >= cost && !upgradesPurchased[type]) {
+                waterCoins -= cost;
+                resilienceIndex += res;
+                upgradesPurchased[type] = true;
+
+                if (type === 'greenroof') schoolRoofMesh.material.color.setHex(0x22c55e);
+                else if (type === 'permeable') houseDrivewayMesh.material.color.setHex(0x10b981);
+                else if (type === 'rainbarrel') rainBarrelMesh.visible = true;
+                else if (type === 'pond') pondParkMesh.visible = true;
+
+                updateGameDashboard();
+            }
+        }
+
+        function updateGameDashboard() {
+            document.getElementById("gameCoins").innerText = waterCoins;
+            document.getElementById("gameResilience").innerText = `${resilienceIndex}%`;
+            document.getElementById("absorptionBar").style.width = `${resilienceIndex}%`;
+            document.getElementById("absorptionVal").innerText = resilienceIndex > 50 ? "極快 (優)" : "慢";
+        }
+
+        function adjustCoins(amt) {
+            waterCoins = Math.max(0, waterCoins + amt);
+            updateGameDashboard();
+        }
+
+        function adjustFlood(amt) {
+            floodDepth = Math.max(0, floodDepth + amt);
+            document.getElementById("floodDepth").innerText = floodDepth;
+        }
+
+        // 答題邏輯
+        function loadQuizQuestion() {
+            const cur = QUIZ_QUESTIONS[currentQuestionIdx];
+            document.getElementById("questionTypeBadge").innerText = `分類：${cur.type}`;
+            document.getElementById("questionText").innerText = cur.q;
+
+            const box = document.getElementById("optionsBox");
+            box.innerHTML = "";
+
+            cur.o.forEach((opt, idx) => {
+                const btn = document.createElement("button");
+                btn.onclick = () => checkQuizAnswer(idx);
+                btn.className = "w-full text-left p-2.5 rounded-xl bg-white border border-amber-900/20 font-bold text-xs text-slate-900 hover:bg-amber-100/50 shadow-sm transition active:scale-95";
+                btn.innerText = `${["A", "B"][idx]}. ${opt}`;
+                box.appendChild(btn);
+            });
+        }
+
+        function checkQuizAnswer(idx) {
+            const cur = QUIZ_QUESTIONS[currentQuestionIdx];
+            const isCorrect = (idx === cur.a);
+
+            document.getElementById("quizContainer").classList.add("hidden");
+            const fb = document.getElementById("feedbackContainer");
+            fb.classList.remove("hidden");
+            fb.classList.add("flex");
+
+            if (isCorrect) {
+                adjustCoins(20);
+                document.getElementById("feedbackIcon").innerText = "⭕";
+                document.getElementById("feedbackTitle").innerText = "答對囉！";
+                document.getElementById("feedbackDesc").innerText = "太棒了！獲得 20 水金幣獎勵來升級防洪設施！";
+            } else {
+                document.getElementById("feedbackIcon").innerText = "❌";
+                document.getElementById("feedbackTitle").innerText = "差一點點！";
+                document.getElementById("feedbackDesc").innerText = `正確答案是：【${cur.o[cur.a]}】`;
+            }
+        }
+
+        function nextQuestion() {
+            currentQuestionIdx = (currentQuestionIdx + 1) % QUIZ_QUESTIONS.length;
+            document.getElementById("feedbackContainer").classList.add("hidden");
+            document.getElementById("quizContainer").classList.remove("hidden");
+            loadQuizQuestion();
+        }
+
+        function speakQuestion() {
+            if (window.speechSynthesis) {
+                window.speechSynthesis.cancel();
+                const cur = QUIZ_QUESTIONS[currentQuestionIdx];
+                const u = new SpeechSynthesisUtterance(`題目是：${cur.q}。選項A：${cur.o[0]}。選項B：${cur.o[1]}`);
+                u.lang = 'zh-TW';
+                window.speechSynthesis.speak(u);
+            }
+        }
+
+        function rollFateDice() {
+            if (waterCoins < 10) return;
+            adjustCoins(-10);
+            const ev = FATE_EVENTS[Math.floor(Math.random() * FATE_EVENTS.length)];
+            document.getElementById("eventIcon").innerText = ev.icon;
+            document.getElementById("eventTitle").innerText = ev.title;
+            document.getElementById("eventDescription").innerText = ev.desc;
+            document.getElementById("eventRewardPenalty").innerText = ev.penalty;
+            document.getElementById("eventModal").classList.remove("hidden");
+            ev.action();
+        }
+
+        function closeEventModal() { document.getElementById("eventModal").classList.add("hidden"); }
+
+        function showCharacterModal(charKey) {
+            const c = CHARACTERS[charKey];
+            if (!c) return;
+            document.getElementById("modalCharImg").src = c.img;
+            document.getElementById("modalCharTitle").innerText = c.name;
+            document.getElementById("modalCharRole").innerText = c.role;
+            document.getElementById("modalCharDesc").innerText = c.desc;
+            document.getElementById("modalCharAction").innerText = c.action;
+            document.getElementById("characterModal").classList.remove("hidden");
+        }
+
+        function closeCharacterModal() {
+            document.getElementById("characterModal").classList.add("hidden");
+        }
+
+        function openHelpModal() {
+            document.getElementById("helpModal").classList.remove("hidden");
+        }
+
+        function closeHelpModal() {
+            document.getElementById("helpModal").classList.add("hidden");
+        }
+
+        function openJoinModal() {
+            switchTab('contribution');
+        }
+
+        function filterCases(cat) {
+            document.querySelectorAll(".case-filter-btn").forEach(b => {
+                b.className = "case-filter-btn px-3 py-1.5 rounded-xl text-xs font-black bg-slate-100 text-slate-600";
+            });
+            event.target.className = "case-filter-btn active px-3 py-1.5 rounded-xl text-xs font-black bg-sky-600 text-white";
+
+            document.querySelectorAll(".case-card").forEach(card => {
+                if (cat === 'all' || card.classList.contains(cat)) {
+                    card.classList.remove("hidden");
+                } else {
+                    card.classList.add("hidden");
+                }
+            });
+        }
+
+        function updateContributionScore() {
+            const checks = document.querySelectorAll(".contrib-check");
+            let count = 0;
+            checks.forEach(c => { if (c.checked) count++; });
+            
+            const score = count * 20;
+            document.getElementById("userScore").innerText = `${score} 分`;
+
+            let badge = "🌱 逕流新秀";
+            if (score >= 80) badge = "🏆 逕流分擔大師";
+            else if (score >= 60) badge = "🌿 綠色水花衛士";
+            else if (score >= 40) badge = "💧 吸水神隊友";
+
+            document.getElementById("userBadgeTitle").innerText = badge;
+        }
+
+        function shareContributionCard() {
+            const score = document.getElementById("userScore").innerText;
+            const badge = document.getElementById("userBadgeTitle").innerText;
+            alert(`🎉 恭喜！您已成功解鎖【${badge}】（得分：${score}）！讓我們一起為城市逕流分擔盡一份心力！`);
+        }
+    </script>
+</body>
+</html>
