@@ -521,18 +521,18 @@
             <div class="absolute top-2 left-2 bg-ink-900/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/10 text-[10px] text-white space-y-0.5">
               <div class="flex justify-between gap-3">
                 <span class="text-slate-400">逕流峰值：</span>
-                <span id="gaugeRunoff" class="font-bold text-sky-400">142 m³/s</span>
+                <span id="gaugeRunoff" class="font-bold text-sky-400">68 m³/s</span>
               </div>
               <div class="flex justify-between gap-3">
                 <span class="text-slate-400">社區積水：</span>
-                <span id="gaugeDepth" class="font-bold text-amber-400">28 cm</span>
+                <span id="gaugeDepth" class="font-bold text-amber-400">10 cm</span>
               </div>
             </div>
 
             <!-- Resilience Score Gauge -->
             <div class="absolute top-2 right-2 bg-ink-900/80 backdrop-blur-md px-2.5 py-1.5 rounded-xl border border-white/10 text-right">
               <span class="text-[9px] text-slate-400 block font-bold">承洪韌性指數</span>
-              <span id="resilienceScore" class="text-sm font-black text-emerald-400">55% 待加強</span>
+              <span id="resilienceScore" class="text-sm font-black text-sky-400">72% 穩定可控</span>
             </div>
             
             <!-- Water overflow warning alert -->
@@ -781,9 +781,13 @@
             茲證明熱心公民 <span id="certName" class="font-black text-ink-800 underline decoration-gold-500">訪客</span><br>
             已具備「土地與水道共同承洪」現代韌性防災素養！
           </p>
-          <div class="pt-2 text-[9px] text-slate-400 flex justify-between border-t border-cream-200">
-            <span>認證單位：成大水環境 × 第六河川分署</span>
-            <span id="certDate">2026.10.13</span>
+          <div class="pt-3 border-t border-cream-200 space-y-1.5 text-center">
+            <p class="text-[10px] text-slate-600 font-medium leading-relaxed">
+              認證單位：國立成功大學智慧水環境研究中心 × 經濟部水利署第六河川分署
+            </p>
+            <p class="text-[9px] text-slate-400 tracking-wider">
+              認證日期：<span id="certDate">2026.10.16</span>
+            </p>
           </div>
         </div>
       </section>
@@ -1383,25 +1387,53 @@
         ctx.fill();
       }
 
-      // 7. Calculate Hydrology Metrics
-      let baseRunoff = state.rainLevel * 60; // baseline runoff m3/s
-      let baseDepth = state.rainLevel * 14;  // baseline water depth cm
+      // 7. Calculate Hydrology Metrics based on Realistic Baseline
+      // Level 1 (小雨 30mm): 基準逕流 25 m³/s, 積水 0 cm, 承洪韌性 92% (安全無虞)
+      // Level 2 (大雨 80mm): 基準逕流 68 m³/s, 積水 10 cm, 承洪韌性 72% (穩定可控)
+      // Level 3 (豪雨 150mm): 基準逕流 130 m³/s, 積水 24 cm, 承洪韌性 45% (積水警戒)
+      // Level 4 (極端暴雨 300mm): 基準逕流 210 m³/s, 積水 42 cm, 承洪韌性 18% (淹水高風險)
+      const rainBaselines = [
+        { runoff: 25, depth: 0, resilience: 92 },
+        { runoff: 68, depth: 10, resilience: 72 },
+        { runoff: 130, depth: 24, resilience: 45 },
+        { runoff: 210, depth: 42, resilience: 18 }
+      ];
+      const base = rainBaselines[state.rainLevel - 1];
 
-      // Subtraction by facilities
-      if (state.deployed.brick) { baseRunoff -= 28; baseDepth -= 9; }
-      if (state.deployed.pond) { baseRunoff -= 40; baseDepth -= 12; }
-      if (state.deployed.pavement) { baseRunoff -= 16; baseDepth -= 5; }
-      if (state.deployed.greenery) { baseRunoff -= 18; baseDepth -= 4; }
-      if (state.deployed.bypass) { baseRunoff -= 32; baseDepth -= 7; }
+      let runoffReduction = 0;
+      let depthReduction = 0;
+      let resilienceBonus = 0;
 
-      const finalRunoff = Math.max(12, Math.round(baseRunoff));
-      const finalDepth = Math.max(0, Math.round(baseDepth));
+      // 各項逕流分擔措施之消峰減洪與韌性增益
+      if (state.deployed.brick) {
+        runoffReduction += 32;
+        depthReduction += 10;
+        resilienceBonus += 20;
+      }
+      if (state.deployed.pond) {
+        runoffReduction += 42;
+        depthReduction += 13;
+        resilienceBonus += 22;
+      }
+      if (state.deployed.pavement) {
+        runoffReduction += 18;
+        depthReduction += 6;
+        resilienceBonus += 12;
+      }
+      if (state.deployed.greenery) {
+        runoffReduction += 16;
+        depthReduction += 5;
+        resilienceBonus += 10;
+      }
+      if (state.deployed.bypass) {
+        runoffReduction += 34;
+        depthReduction += 8;
+        resilienceBonus += 18;
+      }
 
-      // Calculate Resilience Score (0 - 100%)
-      const maxPossibleReduction = 134;
-      const reduction = (state.rainLevel * 60) - finalRunoff;
-      let resilience = Math.min(100, Math.round((reduction / maxPossibleReduction) * 100) + 15);
-      if (state.rainLevel === 1) resilience = Math.min(100, resilience + 30);
+      const finalRunoff = Math.max(8, Math.round(base.runoff - runoffReduction));
+      const finalDepth = Math.max(0, Math.round(base.depth - depthReduction));
+      const finalResilience = Math.min(100, Math.max(10, Math.round(base.resilience + resilienceBonus)));
 
       // Update gauges on UI
       const runoffElem = document.getElementById('gaugeRunoff');
@@ -1412,20 +1444,35 @@
       if (runoffElem) runoffElem.textContent = `${finalRunoff} m³/s`;
       if (depthElem) depthElem.textContent = `${finalDepth} cm`;
       if (scoreElem) {
-        scoreElem.textContent = `${resilience}% ${resilience >= 80 ? '優異韌性' : resilience >= 50 ? '尚可抵抗' : '淹水高風險'}`;
-        scoreElem.className = `text-sm font-black ${resilience >= 80 ? 'text-emerald-400' : resilience >= 50 ? 'text-amber-400' : 'text-red-400'}`;
+        let statusText = '優異承洪';
+        let statusColor = 'text-emerald-400';
+        if (finalResilience >= 85) {
+          statusText = '優異承洪';
+          statusColor = 'text-emerald-400';
+        } else if (finalResilience >= 65) {
+          statusText = '穩定可控';
+          statusColor = 'text-sky-400';
+        } else if (finalResilience >= 45) {
+          statusText = '積水警戒';
+          statusColor = 'text-amber-400';
+        } else {
+          statusText = '淹水高風險';
+          statusColor = 'text-red-400';
+        }
+        scoreElem.textContent = `${finalResilience}% ${statusText}`;
+        scoreElem.className = `text-sm font-black ${statusColor}`;
       }
 
       // 8. Draw Flood Water Level Overlay on Ground
-      if (finalDepth > 3) {
+      if (finalDepth > 1) {
         ctx.fillStyle = 'rgba(239, 68, 68, 0.45)';
-        const waterHeight = Math.min(32, finalDepth * 0.9);
+        const waterHeight = Math.min(32, finalDepth * 0.75);
         ctx.fillRect(0, groundY - waterHeight, w, waterHeight);
       }
 
-      // Show alert if flood depth > 15cm
+      // Show alert if flood depth > 12cm
       if (alertElem) {
-        if (finalDepth > 15) alertElem.classList.remove('hidden');
+        if (finalDepth > 12) alertElem.classList.remove('hidden');
         else alertElem.classList.add('hidden');
       }
 
@@ -1704,7 +1751,10 @@
 
       document.getElementById('certName').textContent = name;
       const today = new Date();
-      document.getElementById('certDate').textContent = `${today.getFullYear()}.${today.getMonth() + 1}.${today.getDate()}`;
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const date = String(today.getDate()).padStart(2, '0');
+      document.getElementById('certDate').textContent = `${year}.${month}.${date}`;
 
       const card = document.getElementById('certificateCard');
       card.classList.remove('hidden');
